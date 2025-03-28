@@ -35,7 +35,7 @@ class Message(Base):
     title: Mapped[str] = mapped_column(String)
     text: Mapped[str] = mapped_column(String)
     time: Mapped[str] = mapped_column(String)  # HH:MM
-    date: Mapped[str] = mapped_column(String)  # YYYY-MM-DD
+    date: Mapped[str] = mapped_column(String)  # YYYY-MM-DD  # noqa: F811
 
 class Chat(Base):
     __tablename__ = 'chats'
@@ -150,6 +150,25 @@ async def message_date_step(msg: types.Message, state: FSMContext):
         ))
         await session.commit()
     await msg.answer("Сообщение добавлено!")
+    await state.clear()
+
+
+# === ДОБАВЛЕНИЕ ЧАТА === #
+@dp.message(F.text == "Добавить ID чата")
+async def add_chat(msg: types.Message, state: FSMContext):
+    await msg.answer("Отправьте любое сообщение из нужного чата или введите его ID:")
+    await state.set_state(AdminStates.add_chat_id)
+
+@dp.message(AdminStates.add_chat_id)
+async def save_chat_id(msg: types.Message, state: FSMContext):
+    try:
+        chat_id = int(msg.text) if msg.text.lstrip('-').isdigit() else msg.chat.id
+        async with SessionLocal() as session:
+            session.add(Chat(chat_id=chat_id))
+            await session.commit()
+        await msg.answer(f"Чат с ID `{chat_id}` добавлен в базу данных.", parse_mode="Markdown")
+    except Exception as e:
+        await msg.answer(f"Ошибка: {e}")
     await state.clear()
 
 # === СПИСОК СООБЩЕНИЙ === #
